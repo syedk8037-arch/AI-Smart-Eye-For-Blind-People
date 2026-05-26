@@ -1,0 +1,11 @@
+Need to install those libraries to run the models on the system:-
+
+
+opencv-python
+numpy
+torch
+torchvision
+pytesseract
+pyttsx3
+face-recognition
+flask
