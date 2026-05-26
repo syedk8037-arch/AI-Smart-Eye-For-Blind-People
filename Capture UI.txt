@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    android:background="@drawable/bg_app">
+
+    <!-- Actual card -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:background="@drawable/card_neon"
+        android:foreground="?attr/selectableItemBackgroundBorderless">
+
+        <!-- Thumbnail -->
+        <ImageView
+            android:id="@+id/captureImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:padding="2dp"
+            android:src="@drawable/ic_person" />
+
+        <!-- Name overlay -->
+        <TextView
+            android:id="@+id/captureName"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:layout_gravity="bottom"
+            android:background="#AA021826"
+            android:gravity="center_vertical"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="image_001.jpg"
+            android:textColor="@color/sg_neon_soft"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <!-- Delete button -->
+        <ImageButton
+            android:id="@+id/btnDeleteImage"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_margin="6dp"
+            android:layout_gravity="top|end"
+            android:background="@android:color/transparent"
+            android:tint="@color/sg_neon"
+            android:src="@android:drawable/ic_menu_delete"
+            android:contentDescription="Delete image" />
+
+    </FrameLayout>
+
+</FrameLayout>

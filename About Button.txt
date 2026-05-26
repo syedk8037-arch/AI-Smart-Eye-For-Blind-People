@@ -1,11 +1,88 @@
-package com.example.smartglass
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/bg_app">
 
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
+    <!-- Title -->
+    <TextView
+        android:id="@+id/txtAboutTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="AI-Based Smart Eye for Blind People"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/white"
+        android:gravity="center"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp" />
 
-class AboutActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_about)
-    }
-}
+    <!-- Subtitle -->
+    <TextView
+        android:id="@+id/txtAboutSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="16dp"
+        android:gravity="center"
+        android:paddingBottom="12dp"
+        android:text=""
+        android:textColor="@android:color/white"
+        android:textSize="14sp" />
+
+    <!-- Scrollable content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp"
+            android:background="#B3000000">
+
+            <!-- Main about text -->
+            <TextView
+                android:id="@+id/txtAboutBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingExtra="2dp"
+                android:text="The AI-Based Smart Eye for Blind People is an advanced wearable device designed to support visually impaired individuals by converting visual information into meaningful audio feedback. The smart glasses are powered by a Raspberry Pi and a high-definition camera that continuously captures the surrounding environment. Depending on the selected mode, the glasses can recognize faces, detect objects, identify currency notes, and read both printed and handwritten text using AI models such as YOLO and OCR. Whenever a detected element is recognized, the system instantly processes it offline and converts the output into speech using a Text-to-Speech engine, delivered to the user through earphones for real-time assistance. An integrated ultrasonic sensor constantly monitors nearby obstacles and activates a buzzer alert when an object is too close, ensuring confidence and safety while walking.&#10;&#10;The Smart Glass Manager Android App acts as a companion interface for controlling and managing the Smart Eye system. The app connects securely to the Raspberry Pi using Bluetooth RFCOMM communication, enabling full offline functionality without Internet access. Users can view the list of stored face profiles, rename or delete them, and register a new person simply by capturing a short video. The app automatically extracts multiple frames, compresses them, and uploads them to the Raspberry Pi for face recognition training. It also displays images captured by the smart glasses in a gallery format, allowing the user to delete unwanted images and manage storage efficiently.&#10;&#10;Together, the Smart Eye wearable system and the Smart Glass Manager application create a powerful and accessible ecosystem that provides visually impaired individuals with enhanced independence and usability. The device delivers real-time audio feedback for identifying people, objects, and currency, reading text, and avoiding obstacles, while the app ensures easy data control and seamless monitoring of the system’s performance. This combined AI-driven solution improves safety, awareness, and everyday convenience for blind users."
+
+                android:textAlignment="viewStart"
+                android:textAllCaps="false"
+                android:textColor="@android:color/white"
+                android:textSize="14sp" />
+
+            <!-- Spacer -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="16dp" />
+
+            <!-- Credits heading -->
+            <TextView
+                android:id="@+id/txtCreditsTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Project Team &amp; Guide"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                android:paddingBottom="8dp" />
+
+            <!-- Credits body -->
+            <TextView
+                android:id="@+id/txtCreditsBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:lineSpacingExtra="2dp"
+                android:textColor="@android:color/white"
+                android:text="Guided by: Savitha. B&#10;&#10;• Kanaka V Y  (USN: 1DB22CI053)&#10;• Shashank M Y  (USN: 1DB23CI407)&#10;• Syed Kabir  (USN: 1DB23CI410)" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

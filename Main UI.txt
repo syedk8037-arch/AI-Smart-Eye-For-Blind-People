@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_app"
+    tools:context="MainActivity">
+
+    <!-- your existing buttons / layouts stay same here -->
+
+
+    <!-- About button at top-right -->
+    <Button
+        android:id="@+id/btnAbout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="24dp"
+        android:text="About"
+        android:textColor="@color/sg_neon"
+        android:background="@drawable/btn_neon"
+        android:textAllCaps="false"/>
+
+    <!-- Center column with Sync, Faces, Captured Images -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="300dp">
+
+        <Button
+            android:id="@+id/btnSync"
+            android:layout_width="164dp"
+            android:layout_height="wrap_content"
+            android:background="@drawable/btn_neon"
+            android:text="Sync"
+            android:textAllCaps="false"
+            android:textColor="@color/sg_neon" />
+
+        <Button
+            android:id="@+id/btnFaces"
+            android:layout_width="163dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/btn_neon"
+            android:text="Faces"
+            android:textAllCaps="false"
+            android:textColor="@color/sg_neon" />
+
+        <Button
+            android:id="@+id/btnCapture"
+            android:layout_width="163dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/btn_neon"
+            android:text="Capture &amp; Upload"
+            android:textAllCaps="false"
+            android:textColor="@color/sg_neon"/>
+
+        <Button
+            android:id="@+id/btnCaptured"
+            android:layout_width="164dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/btn_neon"
+            android:text="Gallery"
+            android:textAllCaps="false"
+            android:textColor="@color/sg_neon" />
+
+
+    </LinearLayout>
+    <Button
+        android:id="@+id/btnSecretVideo"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@android:color/transparent"
+        android:text=""
+        android:alpha="0.02"
+        android:clickable="true"
+        android:focusable="true"
+        android:layout_margin="8dp"/>
+
+
+</RelativeLayout>
