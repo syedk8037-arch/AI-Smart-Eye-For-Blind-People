@@ -1,0 +1,87 @@
+package com.example.smartglass
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+
+class FacesAdapter(
+    private val list: MutableList<FaceData>,
+    private val onEditClick: (Int) -> Unit,
+    private val onDeleteClick: (Int) -> Unit
+) : RecyclerView.Adapter<FacesAdapter.VH>() {
+
+    inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val imgFace: ImageView = itemView.findViewById(R.id.faceImage)
+        private val tvName: TextView = itemView.findViewById(R.id.txtFaceName)
+        private val btnEdit: ImageButton = itemView.findViewById(R.id.btnEdit)
+        private val btnDelete: ImageButton = itemView.findViewById(R.id.btnDelete)
+
+        fun bind(position: Int) {
+            val person = list[position]
+
+            tvName.text = person.name
+            person.image?.let { imgFace.setImageBitmap(it) }
+
+            // 🔵 EDIT button with small bounce animation
+            btnEdit.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+
+                    // mini scale animation
+                    btnEdit.animate()
+                        .scaleX(0.9f)
+                        .scaleY(0.9f)
+                        .setDuration(80)
+                        .withEndAction {
+                            btnEdit.animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(80)
+                                .start()
+                        }
+                        .start()
+
+                    onEditClick(pos)
+                }
+            }
+
+            // 🔴 DELETE button with small bounce animation
+            btnDelete.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+
+                    btnDelete.animate()
+                        .scaleX(0.9f)
+                        .scaleY(0.9f)
+                        .setDuration(80)
+                        .withEndAction {
+                            btnDelete.animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(80)
+                                .start()
+                        }
+                        .start()
+
+                    onDeleteClick(pos)
+                }
+            }
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_face, parent, false)
+        return VH(v)
+    }
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        holder.bind(position)
+    }
+
+    override fun getItemCount(): Int = list.size
+}

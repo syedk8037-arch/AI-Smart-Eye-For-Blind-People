@@ -1,0 +1,61 @@
+package com.example.smartglass
+
+import android.os.Bundle
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+
+class CaptureDetailActivity : AppCompatActivity() {
+
+    private var index: Int = -1
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_capture_detail)
+
+        val imgFull: ImageView = findViewById(R.id.fullImage)
+        val txtName: TextView = findViewById(R.id.fullName)
+        val btnDelete: Button = findViewById(R.id.btnDeleteFull)
+        val btnBack: Button = findViewById(R.id.btnBackFull)
+
+        index = intent.getIntExtra("index", -1)
+        if (index < 0 || index >= CapturedImagesManager.images.size) {
+            finish()
+            return
+        }
+
+        val item = CapturedImagesManager.images[index]
+        imgFull.setImageBitmap(item.image)
+        txtName.text = item.name
+
+        btnBack.setOnClickListener {
+            setResult(RESULT_CANCELED)
+            finish()
+        }
+
+        btnDelete.setOnClickListener {
+            PiBluetoothClient.sendDeleteCapture(item.name) { success, msg ->
+                runOnUiThread {
+                    if (success) {
+                        CapturedImagesManager.images.removeAt(index)
+                        Toast.makeText(
+                            this,
+                            "Deleted ${item.name}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        setResult(RESULT_OK)
+                        finish()
+                    } else {
+                        Toast.makeText(
+                            this,
+                            "Delete failed: $msg",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        }
+    }
+}

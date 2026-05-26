@@ -1,0 +1,82 @@
+package com.example.smartglass
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+
+class CaptureAdapter(
+    private val list: MutableList<CapturedImage>,
+    private val onItemClick: (Int) -> Unit,
+    private val onDeleteClick: (Int) -> Unit
+) : RecyclerView.Adapter<CaptureAdapter.VH>() {
+
+    inner class VH(view: View) : RecyclerView.ViewHolder(view) {
+        val img: ImageView = view.findViewById(R.id.captureImage)
+        val txt: TextView = view.findViewById(R.id.captureName)
+        val btnDelete: ImageButton = view.findViewById(R.id.btnDeleteImage)
+
+        init {
+            // 🔹 Open full screen with animation
+            view.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+
+                    view.animate()
+                        .scaleX(0.96f)
+                        .scaleY(0.96f)
+                        .setDuration(90)
+                        .withEndAction {
+                            view.animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(90)
+                                .start()
+                        }
+                        .start()
+
+                    onItemClick(pos)
+                }
+            }
+
+            // 🔥 Delete with bounce animation
+            btnDelete.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+
+                    btnDelete.animate()
+                        .scaleX(0.85f)
+                        .scaleY(0.85f)
+                        .setDuration(80)
+                        .withEndAction {
+                            btnDelete.animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(80)
+                                .start()
+
+                            onDeleteClick(pos)
+                        }
+                        .start()
+                }
+            }
+        }
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_capture, parent, false)
+        return VH(v)
+    }
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val item = list[position]
+        holder.txt.text = item.name
+        holder.img.setImageBitmap(item.image)
+    }
+
+    override fun getItemCount(): Int = list.size
+}

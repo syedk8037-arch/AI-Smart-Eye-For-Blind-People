@@ -1,0 +1,120 @@
+package com.example.smartglass
+
+import android.app.AlertDialog
+import android.content.Context
+import android.content.DialogInterface
+import android.os.Bundle
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+
+class FacesActivity : AppCompatActivity() {
+
+    private lateinit var recycler: RecyclerView
+    private lateinit var adapter: FacesAdapter
+
+    // Use the shared store – this is what SyncActivity will fill
+    private val faceList: MutableList<FaceData> = FaceDataStore.faces
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_faces)
+
+        recycler = findViewById(R.id.recyclerFaces)
+
+        adapter = FacesAdapter(
+            list = faceList,
+            onEditClick = { pos: Int -> showRenameDialog(pos) },
+            onDeleteClick = { pos: Int -> deleteFace(pos) }
+        )
+
+        recycler.adapter = adapter
+        recycler.layoutManager = LinearLayoutManager(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // When you come back from SyncActivity, refresh UI
+        adapter.notifyDataSetChanged()
+    }
+
+    /** --------- RENAME LOGIC ---------- */
+
+    private fun showRenameDialog(position: Int) {
+        val face = faceList[position]
+
+        val input = EditText(this)
+        input.setText(face.name)
+        input.requestFocus()
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Rename Person")
+            .setView(input)
+            .setPositiveButton("Save") { _: DialogInterface, _: Int ->
+                val newName = input.text.toString().trim()
+                if (newName.isBlank()) {
+                    Toast.makeText(this, "Name cannot be blank", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val oldName = face.name
+
+                // Uses PiBluetoothClient we already created
+                PiBluetoothClient.sendRename(oldName, newName) { success, msg ->
+                    runOnUiThread {
+                        if (success) {
+                            face.name = newName
+                            adapter.notifyItemChanged(position)
+                            Toast.makeText(this, "Renamed to $newName", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(
+                                this,
+                                "Rename failed: $msg",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+
+        dialog.setOnShowListener {
+            input.post { showKeyboard(input) }
+        }
+
+        dialog.show()
+    }
+
+    private fun showKeyboard(view: View) {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /** --------- DELETE LOGIC ---------- */
+
+    private fun deleteFace(position: Int) {
+        val face = faceList[position]
+        val name = face.name
+
+        PiBluetoothClient.sendDelete(name) { success, msg ->
+            runOnUiThread {
+                if (success) {
+                    faceList.removeAt(position)
+                    adapter.notifyItemRemoved(position)
+                    Toast.makeText(this, "Deleted $name", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Delete failed: $msg",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+}

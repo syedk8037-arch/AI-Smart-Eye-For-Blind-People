@@ -1,0 +1,80 @@
+package com.example.smartglass
+
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothSocket
+import android.util.Log
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.*
+
+@SuppressLint("MissingPermission")
+class BluetoothHelper(private val deviceName: String) {
+
+    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    private var socket: BluetoothSocket? = null
+    private var outputStream: OutputStream? = null
+    private var inputStream: InputStream? = null
+
+    // Unique UUID for serial communication (RFCOMM)
+    private val uuid: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
+    fun connect(): Boolean {
+        try {
+            val device: BluetoothDevice? = bluetoothAdapter?.bondedDevices?.find {
+                it.name == deviceName
+            }
+
+            if (device == null) {
+                Log.e("BluetoothHelper", "Device not found: $deviceName")
+                return false
+            }
+
+            socket = device.createRfcommSocketToServiceRecord(uuid)
+            socket?.connect()
+
+            outputStream = socket?.outputStream
+            inputStream = socket?.inputStream
+
+            Log.i("BluetoothHelper", "Connected to $deviceName")
+            return true
+
+        } catch (e: IOException) {
+            Log.e("BluetoothHelper", "Connection failed: ${e.message}")
+            return false
+        }
+    }
+
+    fun sendData(data: String) {
+        try {
+            outputStream?.write(data.toByteArray())
+            outputStream?.flush()
+        } catch (e: IOException) {
+            Log.e("BluetoothHelper", "Error sending data: ${e.message}")
+        }
+    }
+
+    fun receiveData(): String? {
+        return try {
+            val buffer = ByteArray(1024)
+            val bytes = inputStream?.read(buffer) ?: -1
+            if (bytes > 0) String(buffer, 0, bytes) else null
+        } catch (e: IOException) {
+            Log.e("BluetoothHelper", "Error receiving data: ${e.message}")
+            null
+        }
+    }
+
+    fun disconnect() {
+        try {
+            inputStream?.close()
+            outputStream?.close()
+            socket?.close()
+            Log.i("BluetoothHelper", "Disconnected from $deviceName")
+        } catch (e: IOException) {
+            Log.e("BluetoothHelper", "Error during disconnect: ${e.message}")
+        }
+    }
+}

@@ -1,0 +1,197 @@
+package com.example.smartglass
+
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothSocket
+import android.util.Base64
+import android.util.Log
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.OutputStream
+
+object PiBluetoothClient {
+
+    private const val TAG = "PiBluetoothClient"
+
+    // Same as SyncActivity
+    private const val PI_MAC = "DC:B7:2E:88:59:8D"
+    private const val PI_NAME = "raspberrypi"
+
+    // ---------- internal helper to connect to Pi ----------
+
+    @SuppressLint("MissingPermission")
+    @Throws(Exception::class)
+    private fun connectSocket(): BluetoothSocket {
+        val adapter = BluetoothAdapter.getDefaultAdapter()
+            ?: throw Exception("No Bluetooth adapter")
+
+        if (!adapter.isEnabled) {
+            throw Exception("Bluetooth is turned off")
+        }
+
+        adapter.cancelDiscovery()
+
+        val bonded = adapter.bondedDevices
+        val device: BluetoothDevice = bonded.firstOrNull {
+            it.address.equals(PI_MAC, ignoreCase = true) ||
+                    it.name.equals(PI_NAME, ignoreCase = true)
+        } ?: adapter.getRemoteDevice(PI_MAC)
+
+        Log.d(TAG, "Connecting to ${device.name} [${device.address}]")
+
+        val method = device.javaClass.getMethod(
+            "createRfcommSocket",
+            Int::class.javaPrimitiveType
+        )
+        val socket = method.invoke(device, 1) as BluetoothSocket
+        socket.connect()
+        Log.d(TAG, "Socket connected (PiBluetoothClient)")
+
+        return socket
+    }
+
+    // ---------- RENAME FACE ----------
+
+    @SuppressLint("MissingPermission")
+    fun sendRename(
+        oldName: String,
+        newName: String,
+        callback: (success: Boolean, message: String) -> Unit
+    ) {
+        Thread {
+            try {
+                val socket = connectSocket()
+                val out: OutputStream = socket.outputStream
+
+                val cmd = "RENAME:$oldName|$newName\n"
+                Log.d(TAG, "Sending: $cmd")
+
+                out.write(cmd.toByteArray(Charsets.UTF_8))
+                out.flush()
+
+                socket.close()
+                Log.d(TAG, "Rename command sent & socket closed")
+
+                callback(true, "OK")
+            } catch (e: Exception) {
+                Log.e(TAG, "sendRename failed", e)
+                callback(false, e.message ?: "Rename error")
+            }
+        }.start()
+    }
+
+    // ---------- DELETE FACE ----------
+
+    @SuppressLint("MissingPermission")
+    fun sendDelete(
+        name: String,
+        callback: (success: Boolean, message: String) -> Unit
+    ) {
+        Thread {
+            try {
+                val socket = connectSocket()
+                val out: OutputStream = socket.outputStream
+
+                val cmd = "DELETE:$name\n"
+                Log.d(TAG, "Sending: $cmd")
+
+                out.write(cmd.toByteArray(Charsets.UTF_8))
+                out.flush()
+
+                socket.close()
+                Log.d(TAG, "Delete command sent & socket closed")
+
+                callback(true, "OK")
+            } catch (e: Exception) {
+                Log.e(TAG, "sendDelete failed", e)
+                callback(false, e.message ?: "Delete error")
+            }
+        }.start()
+    }
+
+    // ---------- DELETE CAPTURED IMAGE ----------
+
+    @SuppressLint("MissingPermission")
+    fun sendDeleteCapture(
+        filename: String,
+        callback: (success: Boolean, message: String) -> Unit
+    ) {
+        Thread {
+            try {
+                val socket = connectSocket()
+                val out: OutputStream = socket.outputStream
+
+                val cmd = "CAPDEL:$filename\n"
+                Log.d(TAG, "Sending: $cmd")
+
+                out.write(cmd.toByteArray(Charsets.UTF_8))
+                out.flush()
+
+                socket.close()
+                Log.d(TAG, "Capture delete command sent & socket closed")
+
+                callback(true, "OK")
+            } catch (e: Exception) {
+                Log.e(TAG, "sendDeleteCapture failed", e)
+                callback(false, e.message ?: "Delete capture error")
+            }
+        }.start()
+    }
+
+    // ---------- UPLOAD IMAGES (Capture & Upload) ----------
+
+    /**
+     * Uploads multiple face images to Pi using JSON protocol:
+     *
+     *   UPLOAD\n
+     *   {"name":"samad","images":["<b64>","<b64>",...]}
+     *
+     * Pi then saves them as:
+     *   /home/project/projecteye/known_faces/samad/samad1.jpg, samad2.jpg, ...
+     */
+    @SuppressLint("MissingPermission")
+    fun uploadImages(
+        name: String,
+        images: List<ByteArray>,
+        callback: (success: Boolean) -> Unit
+    ) {
+        Thread {
+            try {
+                val socket = connectSocket()
+                val out: OutputStream = socket.outputStream
+
+                // Build JSON
+                val json = JSONObject()
+                json.put("name", name)
+
+                val arr = JSONArray()
+                for (img in images) {
+                    val encoded = Base64.encodeToString(img, Base64.NO_WRAP)
+                    arr.put(encoded)
+                }
+                json.put("images", arr)
+                val jsonStr = json.toString()
+
+                Log.d(TAG, "Upload: name=$name, frames=${images.size}")
+
+                // 1) send command line
+                out.write("UPLOAD\n".toByteArray(Charsets.UTF_8))
+                out.flush()
+
+                // 2) send JSON body
+                out.write(jsonStr.toByteArray(Charsets.UTF_8))
+                out.flush()
+
+                // we don't wait for reply; treat "send without exception" as success
+                socket.close()
+                Log.d(TAG, "Upload command + JSON sent, socket closed")
+
+                callback(true)
+            } catch (e: Exception) {
+                Log.e(TAG, "uploadImages failed", e)
+                callback(false)
+            }
+        }.start()
+    }
+}

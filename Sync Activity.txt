@@ -1,0 +1,212 @@
+package com.example.smartglass
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.os.Build
+import android.os.Bundle
+import android.util.Base64
+import android.util.Log
+import android.widget.Button
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import org.json.JSONArray
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+
+class SyncActivity : AppCompatActivity() {
+
+    private lateinit var btnScan: Button
+
+    private val btAdapter: BluetoothAdapter? by lazy {
+        (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
+    }
+
+    companion object {
+        private const val REQ_BT_PERMS = 201
+        private const val TAG = "SyncActivity"
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_sync)
+
+        btnScan = findViewById(R.id.btnScan)
+
+        btnScan.setOnClickListener {
+            startSync()
+        }
+    }
+
+    @SuppressLint("InlinedApi")
+    private fun hasBtPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val connectGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+            val scanGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED
+            connectGranted && scanGranted
+        } else {
+            true
+        }
+    }
+
+    @SuppressLint("InlinedApi")
+    private fun requestBtPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ),
+                REQ_BT_PERMS
+            )
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_BT_PERMS && hasBtPermission()) {
+            startSync()
+        }
+    }
+
+    private fun parseFacesJson(json: String): List<FaceData> {
+        if (json.isBlank()) return emptyList()
+        val arr = JSONArray(json)
+        val list = mutableListOf<FaceData>()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            val name = obj.getString("name")
+            val imgBase64 = obj.optString("image", "")
+            val bmp: Bitmap? = if (imgBase64.isNotBlank()) {
+                try {
+                    val bytes = Base64.decode(imgBase64, Base64.DEFAULT)
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                } catch (e: Exception) {
+                    null
+                }
+            } else null
+            list.add(FaceData(name, bmp))
+        }
+        return list
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startSync() {
+        if (!hasBtPermission()) {
+            requestBtPermission()
+            return
+        }
+
+        val adapter = btAdapter
+        if (adapter == null || !adapter.isEnabled) {
+            Toast.makeText(this, "Turn on Bluetooth first", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        Thread {
+            try {
+                adapter.cancelDiscovery()
+
+                val bonded = adapter.bondedDevices
+                val device = bonded.firstOrNull {
+                    it.address.equals("DC:B7:2E:88:59:8D", ignoreCase = true) ||
+                            it.name.equals("raspberrypi", ignoreCase = true)
+                } ?: bonded.firstOrNull() ?: run {
+                    runOnUiThread {
+                        Toast.makeText(
+                            this,
+                            "No paired device found",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    return@Thread
+                }
+
+                // Classic RFCOMM socket (channel 1) via reflection
+                val method = device.javaClass.getMethod(
+                    "createRfcommSocket",
+                    Int::class.javaPrimitiveType
+                )
+                val socket = method.invoke(device, 1) as android.bluetooth.BluetoothSocket
+
+                socket.connect()
+                Log.d(TAG, "Connected to ${device.address}")
+
+                val out: OutputStream = socket.outputStream
+                val inp: InputStream = socket.inputStream
+
+                // Ask Pi for faces JSON
+                out.write("SYNC\n".toByteArray(Charsets.UTF_8))
+                out.flush()
+
+                val buffer = ByteArray(4096)
+                val sb = StringBuilder()
+
+                try {
+                    while (true) {
+                        val len = inp.read(buffer)
+                        if (len == -1) break
+                        if (len > 0) {
+                            sb.append(String(buffer, 0, len, Charsets.UTF_8))
+                        }
+                    }
+                } catch (io: IOException) {
+                    Log.d(TAG, "Stream closed, chars=${sb.length}", io)
+                }
+
+                socket.close()
+
+                val json = sb.toString().trim()
+                Log.d(TAG, "Faces JSON length=${json.length}")
+
+                val faces = parseFacesJson(json)
+
+                // Update shared FaceDataStore so FacesActivity sees the data
+                FaceDataStore.faces.clear()
+                FaceDataStore.faces.addAll(faces)
+
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Synced ${faces.size} faces",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    // 👉 Go straight to Faces list after successful sync
+                    startActivity(Intent(this, MainActivity::class.java))
+                    // Close SyncActivity so back button doesn't return here
+                    finish()
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Sync error", e)
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Sync failed: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
+    }
+}

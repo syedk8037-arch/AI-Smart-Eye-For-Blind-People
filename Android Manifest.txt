@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.smartglass">
+
+    <!-- Bluetooth & Location permissions (Android 11 and below) -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <!-- Bluetooth runtime permissions (Android 12+) -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+
+    <!-- 📷 Camera permission for Capture & Upload feature -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Device must have Bluetooth -->
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="true" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SmartGlass">
+
+        <activity
+            android:name=".AboutActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".FacesActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".CapturedImagesActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".CaptureDetailActivity"
+            android:exported="false" />
+
+        <!-- 🆕 New CaptureActivity for recording video & uploading 30 images -->
+        <activity
+            android:name=".CaptureActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SyncActivity"
+            android:exported="false" />
+
+        <activity android:name=".SecretVideoActivity"
+            android:exported="false" />
+
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SmartGlass">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+    </application>
+
+</manifest>

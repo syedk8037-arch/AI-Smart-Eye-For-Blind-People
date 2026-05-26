@@ -1,0 +1,265 @@
+package com.example.smartglass
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.os.Build
+import android.os.Bundle
+import android.util.Base64
+import android.util.Log
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import org.json.JSONArray
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+
+class CapturedImagesActivity : AppCompatActivity() {
+
+    private lateinit var recycler: RecyclerView
+    private lateinit var adapter: CaptureAdapter
+    private val images = mutableListOf<CapturedImage>()
+
+    private val btAdapter: BluetoothAdapter? by lazy {
+        (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
+    }
+
+    companion object {
+        private const val REQ_BT_PERMS = 301
+        private const val REQ_DETAIL = 401
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_captured_images)
+
+        recycler = findViewById(R.id.CapturedImages)
+        adapter = CaptureAdapter(
+            list = images,
+            onItemClick = { position ->
+                openDetail(position)
+            },
+            onDeleteClick = { position ->
+                deleteImage(position)
+            }
+        )
+        recycler.adapter = adapter
+        recycler.layoutManager = GridLayoutManager(this, 3)
+
+        loadImages()
+    }
+
+    private fun openDetail(position: Int) {
+        // sync manager with current list
+        CapturedImagesManager.images.clear()
+        CapturedImagesManager.images.addAll(images)
+
+        val intent = Intent(this, CaptureDetailActivity::class.java)
+        intent.putExtra("index", position)
+        startActivityForResult(intent, REQ_DETAIL)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQ_DETAIL && resultCode == RESULT_OK) {
+            // Detail screen may have deleted something
+            images.clear()
+            images.addAll(CapturedImagesManager.images)
+            adapter.notifyDataSetChanged()
+        }
+    }
+
+    @SuppressLint("InlinedApi")
+    private fun hasBtPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val connectGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) == PackageManager.PERMISSION_GRANTED
+
+            val scanGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED
+
+            connectGranted && scanGranted
+        } else {
+            true
+        }
+    }
+
+    @SuppressLint("InlinedApi")
+    private fun requestBtPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.BLUETOOTH_SCAN
+                ),
+                REQ_BT_PERMS
+            )
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_BT_PERMS) {
+            if (hasBtPermission()) {
+                loadImages()
+            } else {
+                Toast.makeText(
+                    this,
+                    "Bluetooth permission required to load images.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun loadImages() {
+
+        if (!hasBtPermission()) {
+            requestBtPermission()
+            return
+        }
+
+        val adapterBt = btAdapter
+        if (adapterBt == null || !adapterBt.isEnabled) {
+            Toast.makeText(this, "Turn on Bluetooth", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Thread {
+            try {
+                adapterBt.cancelDiscovery()
+
+                val bonded = adapterBt.bondedDevices
+                val device = bonded.firstOrNull {
+                    it.address.equals("DC:B7:2E:88:59:8D", ignoreCase = true) ||
+                            it.name.equals("raspberrypi", ignoreCase = true)
+                } ?: adapterBt.getRemoteDevice("DC:B7:2E:88:59:8D")
+
+                val method = device.javaClass.getMethod(
+                    "createRfcommSocket",
+                    Int::class.javaPrimitiveType
+                )
+                val socket = method.invoke(device, 1) as android.bluetooth.BluetoothSocket
+
+                socket.connect()
+                Log.d("Capture", "Socket connected")
+
+                val out: OutputStream = socket.outputStream
+                val inp: InputStream = socket.inputStream
+
+                out.write("CAPLIST\n".toByteArray(Charsets.UTF_8))
+                out.flush()
+
+                val buffer = ByteArray(4096)
+                val sb = StringBuilder()
+
+                try {
+                    while (true) {
+                        val len = inp.read(buffer)
+                        if (len == -1) break
+                        if (len > 0) {
+                            sb.append(String(buffer, 0, len, Charsets.UTF_8))
+                        }
+                    }
+                } catch (io: IOException) {
+                    Log.d("Capture", "Stream closed, chars=${sb.length}", io)
+                }
+
+                socket.close()
+
+                val json = sb.toString().trim()
+                Log.d("Capture", "JSON length=${json.length}")
+
+                val newList = parseCaptureJson(json)
+
+                runOnUiThread {
+                    images.clear()
+                    images.addAll(newList)
+                    adapter.notifyDataSetChanged()
+
+                    // also update manager
+                    CapturedImagesManager.images.clear()
+                    CapturedImagesManager.images.addAll(newList)
+
+                    Toast.makeText(
+                        this,
+                        "Loaded ${images.size} images",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
+            } catch (e: Exception) {
+                Log.e("Capture", "Error", e)
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Load failed: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun parseCaptureJson(json: String): List<CapturedImage> {
+        if (json.isBlank()) return emptyList()
+        val arr = JSONArray(json)
+        val list = mutableListOf<CapturedImage>()
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            val name = o.getString("name")
+            val imgStr = o.getString("image")
+            val bytes = Base64.decode(imgStr, Base64.DEFAULT)
+            val bmp: Bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            list.add(CapturedImage(name, bmp))
+        }
+        return list
+    }
+
+    private fun deleteImage(position: Int) {
+        val item = images[position]
+        PiBluetoothClient.sendDeleteCapture(item.name) { success, msg ->
+            runOnUiThread {
+                if (success) {
+                    images.removeAt(position)
+                    adapter.notifyItemRemoved(position)
+
+                    // also update manager
+                    CapturedImagesManager.images.clear()
+                    CapturedImagesManager.images.addAll(images)
+
+                    Toast.makeText(
+                        this,
+                        "Deleted ${item.name}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        this,
+                        "Delete failed: $msg",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+}
